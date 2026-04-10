@@ -1,0 +1,51 @@
+import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+
+export const register = async (req, res) => {
+    try{
+
+        const {name, email, password, confirmPassword, role} = req.body;
+        if(password !== confirmPassword){
+            return res.status(400).json({status :false, message : "Password must be same"})
+        }
+        if(!name || !email || !password || !role){
+            return res.status(400).json({status : false, message : "All Fields are mandatary"} )
+        }
+    
+        const existUser = await User.findOne({email :email});
+        if(existUser){
+            return res.status(404).json({status : false, message : "User Already Exist"})
+        }
+    
+        const hashed = await bcrypt.hash(password, 10);
+        const newUser = await User.create({
+            name, email, password: hashed, role 
+        })
+        if(!newUser){
+            return res.status(400).json({status: false, message:"Registration failed! Try again!"})
+        }
+        return res.status(200).json({status: true,message:" Registrstion successfull",data:newUser})
+    }
+    catch(err){
+        return res.status(500).json({status: false, message:"Internal server error !"})
+    }
+
+};
+
+export const login = async (req, res) => {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(400).json({ msg: 'Wrong password' });
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    
+
+    res.json({ status: true, token, data:user,message:"Login successful" });
+
+    
+};
