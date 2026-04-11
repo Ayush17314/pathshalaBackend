@@ -7,6 +7,9 @@ const teacherProfileSchema = new mongoose.Schema({
         required: true,
         unique: true 
     },
+    teacherId: { type: String, unique: true },
+    dateOfBirth: Date,
+    gender: { type: String, enum: ['male', 'female', 'other'] },
     subjects: [{
         subject: { type: String, required: true },
         level: { type: String, enum: ['beginner', 'intermediate', 'advanced'] },
@@ -23,16 +26,24 @@ const teacherProfileSchema = new mongoose.Schema({
         subjects: [String] // Subjects for this class
     }],
     qualifications: [{
-        degree: String,
-        institution: String,
-        year: Number,
+        degree: { type: String, required: true },
+        institution: { type: String, required: true },
+        year: { type: Number, required: true },
         specialization: String
     }],
     experience: {
-        years: Number,
+        years: { type: Number, default: 0 },
         description: String,
+        previousEmployers: [String],
         achievements: [String]
     },
+
+    // Teaching Details
+    teachingStyle: String,
+    bio: { type: String, maxLength: 500 },
+    languages: [String],
+    videoIntro: String,
+
     price: {
         amount: Number,
         currency: { type: String, default: 'INR' },
@@ -49,6 +60,7 @@ const teacherProfileSchema = new mongoose.Schema({
     }],
     rating: { type: Number, default: 0, min: 0, max: 5 },
     totalStudents: { type: Number, default: 0 },
+    totalHours: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 },
     languages: [String],
     videoIntro: String,
@@ -58,7 +70,18 @@ const teacherProfileSchema = new mongoose.Schema({
         issuedBy: String,
         issueDate: Date
     }],
-    isApproved: { type: Boolean, default: false }
+    isApproved: { type: Boolean, default: false },
+    approvalDate: Date,
+    rejectedReason: String
 }, { timestamps: true });
 
+// Auto-generate teacher ID
+teacherProfileSchema.pre('save', async function(next) {
+    if (!this.teacherId) {
+        const year = new Date().getFullYear();
+        const count = await mongoose.model('TeacherProfile').countDocuments();
+        this.teacherId = `TCH${year}${(count + 1).toString().padStart(5, '0')}`;
+    }
+    next();
+});
 export default mongoose.model('TeacherProfile', teacherProfileSchema);

@@ -7,6 +7,11 @@ const studentProfileSchema = new mongoose.Schema({
         required: true,
         unique: true 
     },
+
+    enrollmentNo: { type: String, unique: true },
+    dateOfBirth: Date,
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+
     interestedSubjects: [{
         subject: String,
         level: String,
@@ -17,13 +22,17 @@ const studentProfileSchema = new mongoose.Schema({
         targetDate: Date,
         preparationLevel: String
     }],
-    currentClass: String,
-    board: String,
-    school: String,
+
+    currentClass: { type: String, required: true }, // e.g., "Class 10", "Class 12", "Graduation"
+    board: { type: String }, // CBSE, ICSE, State Board, etc.
+    school: { type: String },
+    medium: { type: String },
+
     parentDetails: {
         name: String,
         phone: String,
-        email: String
+        email: String,
+        relationship: String
     },
     learningPreferences: {
         preferredTimeSlots: [String],
@@ -42,5 +51,15 @@ const studentProfileSchema = new mongoose.Schema({
         addedAt: { type: Date, default: Date.now }
     }]
 }, { timestamps: true });
+
+// Auto-generate enrollment number
+studentProfileSchema.pre('save', async function(next) {
+    if (!this.enrollmentNo) {
+        const year = new Date().getFullYear();
+        const count = await mongoose.model('StudentProfile').countDocuments();
+        this.enrollmentNo = `STU${year}${(count + 1).toString().padStart(5, '0')}`;
+    }
+    next();
+});
 
 export default mongoose.model('StudentProfile', studentProfileSchema);
