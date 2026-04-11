@@ -9,12 +9,13 @@ const userSchema = new mongoose.Schema({
         enum: ['student', 'teacher', 'admin'],
         required: true
     },
-    profilePicture: String,
-    phone: String,
-    address: String,
-    bio: String,
+    profilePicture: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    address: { type: String, default: '' },
+    bio: { type: String, default: '' },
     isActive: { type: Boolean, default: true },
-    isVerified: { type: Boolean, default: false }
+    isVerified: { type: Boolean, default: false },
+    lastLogin: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model('User', userSchema);
