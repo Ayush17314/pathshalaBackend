@@ -3,6 +3,7 @@ import express from 'express';
 // import session from 'express-session';
 // import { connectDB } from './config/db.js';
 // import authRoutes from './routes/authRoutes.js';
+// import userRoutes from './routes/userRoutes.js';
 // import studentRoutes from './routes/studentRoutes.js';  
 // import teacherRoutes from './routes/teacherRoutes.js'; 
 // import chatRoutes from './routes/chatRoutes.js';
@@ -34,6 +35,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 // app.use('/api/auth', authRoutes);
+// app.use('/api/users', userRoutes);
 // app.use('/api/students', studentRoutes); 
 // app.use('/api/teachers', teacherRoutes);  
 // app.use('/api/chats', chatRoutes);

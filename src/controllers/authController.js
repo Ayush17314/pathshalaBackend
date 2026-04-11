@@ -24,6 +24,27 @@ export const register = async (req, res) => {
         if(!newUser){
             return res.status(400).json({status: false, message:"Registration failed! Try again!"})
         }
+
+        // Create role-specific profile
+        if (role === 'student') {
+            await StudentProfile.create({ 
+                user: newUser._id,
+                currentClass: req.body.currentClass || '',
+                board: req.body.board || '',
+                school: req.body.school || ''
+            });
+        } else if (role === 'teacher') {
+            await TeacherProfile.create({ 
+                user: newUser._id,
+                experience: { years: 0 },
+                isApproved: false
+            });
+        }
+        
+        // Remove password from response
+        const userData = newUser.toObject();
+        delete userData.password;
+
         return res.status(200).json({status: true, message:" Registration successful", data:newUser})
     }
     catch(err){
@@ -51,12 +72,24 @@ export const login = async (req, res) => {
             role: user.role
         };
         
+        // Get profile based on role
+        let profile = null;
+        if (user.role === 'student') {
+            profile = await StudentProfile.findOne({ user: user._id });
+        } else if (user.role === 'teacher') {
+            profile = await TeacherProfile.findOne({ user: user._id });
+        }
+        
+        // Remove password from response
+        const userData = user.toObject();
+        delete userData.password;
+
         // Save session
         req.session.save((err) => {
             if(err){
                 return res.status(500).json({ status: false, message: "Session creation failed" });
             }
-            res.json({ status: true, token, data: user, message: "Login successful" });
+            res.json({ status: true, token, data: { ...userData, profile }, message: "Login successful" });
         });
     }
     catch(err){
@@ -82,6 +115,36 @@ export const logout = async (req, res) => {
             
             return res.status(200).json({ status: true, message: "Logout successful" });
         });
+    }
+    catch(err){
+        return res.status(500).json({ status: false, message: "Internal server error !" });
+    }
+};
+
+
+export const checkSession = async (req, res) => {
+    try{
+        if (req.session.user) {
+            const user = await User.findById(req.session.user.id).select('-password');
+            let profile = null;
+            
+            if (user.role === 'student') {
+                profile = await StudentProfile.findOne({ user: user._id });
+            } else if (user.role === 'teacher') {
+                profile = await TeacherProfile.findOne({ user: user._id });
+            }
+            
+            return res.status(200).json({ 
+                status: true, 
+                message: "Session active", 
+                data: { ...user.toObject(), profile }
+            });
+        } else {
+            return res.status(401).json({ 
+                status: false, 
+                message: "No active session" 
+            });
+        }
     }
     catch(err){
         return res.status(500).json({ status: false, message: "Internal server error !" });

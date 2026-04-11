@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import TeacherProfile from '../models/TeacherProfile.js';
 import Subject from '../models/subject.js';
 import TeacherSubject from '../models/TeacherSubject.js';
 
@@ -8,6 +9,7 @@ export const updateTeacherProfile = async (req, res) => {
         delete updateData.password;
         delete updateData.role;
         
+        // Update User common fields
         const user = await User.findByIdAndUpdate(
             req.user.id, 
             updateData, 
@@ -17,6 +19,19 @@ export const updateTeacherProfile = async (req, res) => {
         if (!user) {
             return res.status(404).json({ status: false, message: 'User not found' });
         }
+        
+        // Update Teacher Profile
+        const profileData = { ...req.body };
+        delete profileData.name;
+        delete profileData.email;
+        delete profileData.phone;
+        delete profileData.address;
+        
+        await TeacherProfile.findOneAndUpdate(
+            { user: req.user.id },
+            profileData,
+            { new: true, upsert: true }
+        );
         
         res.json({ status: true, message: 'Profile updated successfully', data: user });
     } catch (error) {
@@ -31,14 +46,18 @@ export const getCurrentTeacher = async (req, res) => {
             return res.status(404).json({ status: false, message: 'Teacher not found' });
         }
         
+        // Get teacher profile
+        const profile = await TeacherProfile.findOne({ user: user._id });
+        
         // Get teacher's subjects
         const teacherSubjects = await TeacherSubject.find({ teacher: user._id })
-            .populate('subject', 'name category');
+            .populate('subject', 'name category code icon color');
         
         res.json({ 
             status: true, 
             data: {
                 ...user.toObject(),
+                profile,
                 subjects: teacherSubjects
             }
         });
@@ -59,14 +78,18 @@ export const getTeacherById = async (req, res) => {
             return res.status(400).json({ status: false, message: 'User is not a teacher' });
         }
         
+        // Get teacher profile
+        const profile = await TeacherProfile.findOne({ user: teacher._id });
+        
         // Get teacher's subjects
-        const teacherSubjects = await TeacherSubject.find({ teacher: teacher._id })
-            .populate('subject', 'name category');
+        const teacherSubjects = await TeacherSubject.find({ teacher: teacher._id, isActive: true })
+            .populate('subject', 'name category code');
         
         res.json({ 
             status: true, 
             data: {
                 ...teacher.toObject(),
+                profile,
                 subjects: teacherSubjects
             }
         });
@@ -77,7 +100,7 @@ export const getTeacherById = async (req, res) => {
 
 export const searchTeachers = async (req, res) => {
     try {
-        const { subjectId, exam, maxPrice, minPrice, rating, name, page = 1, limit = 10 } = req.query;
+        const { subjectId, minPrice, maxPrice, name, page = 1, limit = 10 } = req.query;
         
         let filter = { role: 'teacher', isActive: true };
         
@@ -102,11 +125,12 @@ export const searchTeachers = async (req, res) => {
         }
         
         // Filter by price range
-        if (maxPrice || minPrice) {
+        if (minPrice || maxPrice) {
             const teachersWithPrice = await Promise.all(
                 teachers.map(async (teacher) => {
                     const teacherSubjectsData = await TeacherSubject.find({ 
-                        teacher: teacher._id 
+                        teacher: teacher._id,
+                        isActive: true 
                     });
                     const minTeacherPrice = Math.min(...teacherSubjectsData.map(ts => ts.price || Infinity));
                     const maxTeacherPrice = Math.max(...teacherSubjectsData.map(ts => ts.price || 0));
@@ -130,13 +154,16 @@ export const searchTeachers = async (req, res) => {
             teachers = filtered.map(t => t.teacher);
         }
         
-        // Get full teacher details with subjects
-        const teachersWithSubjects = await Promise.all(
+        // Get full teacher details with subjects and profiles
+        const teachersWithDetails = await Promise.all(
             teachers.map(async (teacher) => {
-                const subjects = await TeacherSubject.find({ teacher: teacher._id })
+                const profile = await TeacherProfile.findOne({ user: teacher._id });
+                const subjects = await TeacherSubject.find({ teacher: teacher._id, isActive: true })
                     .populate('subject', 'name category');
+                    
                 return {
                     ...teacher.toObject(),
+                    profile,
                     subjects: subjects.map(s => ({
                         subjectId: s.subject._id,
                         subjectName: s.subject.name,
@@ -152,14 +179,14 @@ export const searchTeachers = async (req, res) => {
         // Pagination
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
-        const paginatedTeachers = teachersWithSubjects.slice(startIndex, endIndex);
+        const paginatedTeachers = teachersWithDetails.slice(startIndex, endIndex);
         
         res.json({ 
             status: true, 
-            count: teachersWithSubjects.length,
+            count: teachersWithDetails.length,
             page: parseInt(page),
             limit: parseInt(limit),
-            totalPages: Math.ceil(teachersWithSubjects.length / limit),
+            totalPages: Math.ceil(teachersWithDetails.length / limit),
             data: paginatedTeachers
         });
     } catch (error) {
@@ -199,13 +226,13 @@ export const addTeacherSubject = async (req, res) => {
         const teacherSubject = new TeacherSubject({
             teacher: req.user.id,
             subject: subjectId,
-            experience,
-            price,
-            expertise
+            experience: experience || 0,
+            price: price || 0,
+            expertise: expertise || 'beginner'
         });
         
         await teacherSubject.save();
-        await teacherSubject.populate('subject', 'name category');
+        await teacherSubject.populate('subject', 'name category code');
         
         res.status(201).json({ 
             status: true, 
