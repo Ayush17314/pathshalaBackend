@@ -5,18 +5,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const subjects = [
-    { name: 'Mathematics', category: 'Science' },
-    { name: 'Physics', category: 'Science' },
-    { name: 'Chemistry', category: 'Science' },
-    { name: 'Biology', category: 'Science' },
-    { name: 'English', category: 'Languages' },
-    { name: 'Hindi', category: 'Languages' },
-    { name: 'History', category: 'Social Studies' },
-    { name: 'Geography', category: 'Social Studies' },
-    { name: 'Computer Science', category: 'Technology' },
-    { name: 'Economics', category: 'Commerce' },
-    { name: 'Accountancy', category: 'Commerce' },
-    { name: 'Business Studies', category: 'Commerce' }
+    { name: 'Mathematics', code: 'MATH101', category: 'Science', icon: '📐', color: '#FF6B6B' },
+    { name: 'Physics', code: 'PHY101', category: 'Science', icon: '⚡', color: '#4ECDC4' },
+    { name: 'Chemistry', code: 'CHE101', category: 'Science', icon: '🧪', color: '#45B7D1' },
+    { name: 'Biology', code: 'BIO101', category: 'Science', icon: '🧬', color: '#96CEB4' },
+    { name: 'English', code: 'ENG101', category: 'Languages', icon: '📖', color: '#FFEAA7' },
+    { name: 'Hindi', code: 'HIN101', category: 'Languages', icon: '📚', color: '#DDA0DD' },
+    { name: 'History', code: 'HIS101', category: 'Social Studies', icon: '🏛️', color: '#FFB347' },
+    { name: 'Geography', code: 'GEO101', category: 'Social Studies', icon: '🌍', color: '#87CEEB' },
+    { name: 'Computer Science', code: 'CS101', category: 'Technology', icon: '💻', color: '#6C5CE7' },
+    { name: 'Economics', code: 'ECO101', category: 'Commerce', icon: '📊', color: '#A8E6CF' }
 ];
 
 const seedSubjects = async () => {
