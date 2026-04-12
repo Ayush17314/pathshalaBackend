@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import StudentProfile from '../models/studentProfile.js';
+import TeacherProfile from '../models/TeacherProfile.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
@@ -26,19 +28,30 @@ export const register = async (req, res) => {
         }
 
         // Create role-specific profile
-        if (role === 'student') {
-            await StudentProfile.create({ 
-                user: newUser._id,
-                currentClass: req.body.currentClass || '',
-                board: req.body.board || '',
-                school: req.body.school || ''
-            });
-        } else if (role === 'teacher') {
-            await TeacherProfile.create({ 
-                user: newUser._id,
-                experience: { years: 0 },
-                isApproved: false
-            });
+         try {
+            if (role === 'student') {
+                // Check if StudentProfile model exists
+                if (StudentProfile) {
+                    await StudentProfile.create({ 
+                        user: newUser._id,
+                        currentClass: req.body.currentClass || '',
+                        board: req.body.board || '',
+                        school: req.body.school || ''
+                    });
+                }
+            } else if (role === 'teacher') {
+                // Check if TeacherProfile model exists
+                if (TeacherProfile) {
+                    await TeacherProfile.create({ 
+                        user: newUser._id,
+                        experience: { years: 0 },
+                        isApproved: false
+                    });
+                }
+            }
+        } catch (profileError) {
+            console.log("Profile creation error:", profileError.message);
+            // Don't fail registration if profile creation fails
         }
         
         // Remove password from response
@@ -62,7 +75,15 @@ export const login = async (req, res) => {
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(400).json({ status: false, message: 'Wrong password' });
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign(
+            {
+                id: user._id,
+                role: user.role,
+                name: user.name 
+
+            }, process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
         
         // Set session
         req.session.user = {

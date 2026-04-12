@@ -15,7 +15,7 @@ const studentProfileSchema = new mongoose.Schema({
     interestedSubjects: [{
         subject: String,
         level: String,
-        priority: Number // 1 for high, 2 for medium, 3 for low
+        priority:Number // 1 for high, 2 for medium, 3 for low
     }],
     targetExams: [{
         exam: String,
@@ -23,7 +23,7 @@ const studentProfileSchema = new mongoose.Schema({
         preparationLevel: String
     }],
 
-    currentClass: { type: String, required: true }, // e.g., "Class 10", "Class 12", "Graduation"
+    currentClass: { type: String, required: false }, // e.g., "Class 10", "Class 12", "Graduation"
     board: { type: String }, // CBSE, ICSE, State Board, etc.
     school: { type: String },
     medium: { type: String },
