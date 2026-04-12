@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Subject from '../models/Subject_diff.js';
+import Subject from '../models/subject.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
