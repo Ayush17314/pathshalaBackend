@@ -100,7 +100,9 @@ export const getTeacherById = async (req, res) => {
 
 export const searchTeachers = async (req, res) => {
     try {
-        const { subjectId, minPrice, maxPrice, name, page = 1, limit = 10 } = req.query;
+        console.log('Search query:', req.query); // Debug
+
+        const { subjectId, exam, maxPrice, minPrice, rating, name, page = 1, limit = 10 } = req.query;
         
         let filter = { role: 'teacher', isActive: true };
         
@@ -111,6 +113,7 @@ export const searchTeachers = async (req, res) => {
         
         // First find teachers based on basic filters
         let teachers = await User.find(filter).select('-password');
+        console.log('Found teachers:', teachers.length); // Debug
         
         // Filter teachers by subject using TeacherSubject model
         if (subjectId) {

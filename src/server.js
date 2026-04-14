@@ -1,5 +1,6 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import session from 'express-session';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
@@ -10,7 +11,7 @@ import chatRoutes from './routes/chatRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
-import errorHandler from './middleware/errorHandler.js';
+// import errorHandler from './middleware/errorHandler.js';
 import auth from './middleware/authMiddleware.js';
 
 dotenv.config();
@@ -20,6 +21,14 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// CORS middleware
+app.use(cors({
+   origin: ['http://localhost:3000', 'http://localhost:3001'],  
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+}));
 
 // Session middleware
 app.use(session({
@@ -49,6 +58,6 @@ app.get('/api/health', (req, res) => {
 });
 
 // Error handler
-app.use(errorHandler);
+// app.use(errorHandler);
 
 export { app };
