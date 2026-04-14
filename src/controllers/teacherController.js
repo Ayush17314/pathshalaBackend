@@ -98,45 +98,188 @@ export const getTeacherById = async (req, res) => {
     }
 };
 
+// export const searchTeachers = async (req, res) => {
+//     try {
+        
+//         const { subjectId, exam, maxPrice, minPrice, rating, name, page = 1, limit = 10 } = req.query;
+//         console.log('Search query:', req.query); // Debug
+        
+//         let filter = { role: 'teacher', isActive: true };
+        
+//         // Search by name
+//         if (name) {
+//             filter.name = { $regex: name, $options: 'i' };
+//         }
+        
+//         // First find teachers based on basic filters
+//         let teachers = await User.find(filter).select('-password');
+//         console.log('Found teachers:', teachers.length); // Debug
+        
+//         // Filter teachers by subject using TeacherSubject model
+//         if (subjectId) {
+//             const teacherSubjects = await TeacherSubject.find({ 
+//                 subject: subjectId,
+//                 isActive: true 
+//             }).distinct('teacher');
+            
+//             teachers = teachers.filter(teacher => 
+//                 teacherSubjects.includes(teacher._id.toString())
+//             );
+//         }
+        
+//         // Filter by price range
+//         if (minPrice || maxPrice) {
+//             const teachersWithPrice = await Promise.all(
+//                 teachers.map(async (teacher) => {
+//                     const teacherSubjectsData = await TeacherSubject.find({ 
+//                         teacher: teacher._id,
+//                         isActive: true 
+//                     });
+//                     const minTeacherPrice = Math.min(...teacherSubjectsData.map(ts => ts.price || Infinity));
+//                     const maxTeacherPrice = Math.max(...teacherSubjectsData.map(ts => ts.price || 0));
+                    
+//                     return {
+//                         teacher,
+//                         minPrice: minTeacherPrice,
+//                         maxPrice: maxTeacherPrice
+//                     };
+//                 })
+//             );
+            
+//             let filtered = teachersWithPrice;
+//             if (minPrice) {
+//                 filtered = filtered.filter(t => t.maxPrice >= parseFloat(minPrice));
+//             }
+//             if (maxPrice) {
+//                 filtered = filtered.filter(t => t.minPrice <= parseFloat(maxPrice));
+//             }
+            
+//             teachers = filtered.map(t => t.teacher);
+//         }
+        
+//         // Get full teacher details with subjects and profiles
+//         const teachersWithDetails = await Promise.all(
+//             teachers.map(async (teacher) => {
+//                 const profile = await TeacherProfile.findOne({ user: teacher._id });
+//                 const subjects = await TeacherSubject.find({ teacher: teacher._id, isActive: true })
+//                     .populate('subject', 'name category');
+                    
+//                 return {
+//                     ...teacher.toObject(),
+//                     profile,
+//                     subjects: subjects.map(s => ({
+//                         subjectId: s.subject._id,
+//                         subjectName: s.subject.name,
+//                         category: s.subject.category,
+//                         price: s.price,
+//                         experience: s.experience,
+//                         expertise: s.expertise
+//                     }))
+//                 };
+//             })
+//         );
+        
+//         // Pagination
+//         const startIndex = (page - 1) * limit;
+//         const endIndex = page * limit;
+//         const paginatedTeachers = teachersWithDetails.slice(startIndex, endIndex);
+        
+//         res.json({ 
+//             status: true, 
+//             count: teachersWithDetails.length,
+//             page: parseInt(page),
+//             limit: parseInt(limit),
+//             totalPages: Math.ceil(teachersWithDetails.length / limit),
+//             data: paginatedTeachers
+//         });
+//     } catch (error) {
+//         res.status(500).json({ status: false, message: error.message });
+//     }
+// };
 export const searchTeachers = async (req, res) => {
     try {
-        console.log('Search query:', req.query); // Debug
-
-        const { subjectId, exam, maxPrice, minPrice, rating, name, page = 1, limit = 10 } = req.query;
+        const { subjectId, subjectName, exam, maxPrice, minPrice, rating, name, page = 1, limit = 10 } = req.query;
+        
+        console.log('========== SEARCH TEACHERS DEBUG ==========');
+        console.log('Received query params:', req.query);
         
         let filter = { role: 'teacher', isActive: true };
         
-        // Search by name
+        // Search by teacher name
         if (name) {
             filter.name = { $regex: name, $options: 'i' };
         }
         
         // First find teachers based on basic filters
         let teachers = await User.find(filter).select('-password');
-        console.log('Found teachers:', teachers.length); // Debug
+        console.log('Total teachers found before subject filter:', teachers.length);
         
-        // Filter teachers by subject using TeacherSubject model
-        if (subjectId) {
-            const teacherSubjects = await TeacherSubject.find({ 
-                subject: subjectId,
-                isActive: true 
-            }).distinct('teacher');
+        // Handle subject search
+        if (subjectId || subjectName) {
+            let subjectIds = [];
             
-            teachers = teachers.filter(teacher => 
-                teacherSubjects.includes(teacher._id.toString())
-            );
+            if (subjectId) {
+                // Search by subject ID
+                subjectIds = [subjectId];
+                console.log('Searching by subject ID:', subjectId);
+            } else if (subjectName) {
+                // Search by subject NAME - Find all subjects matching the name
+                const subjects = await Subject.find({ 
+                    name: { $regex: new RegExp(`^${subjectName}$`, 'i') }, // Exact match case insensitive
+                    isActive: true 
+                });
+                
+                console.log('Found subjects matching name:', subjectName, subjects);
+                
+                if (subjects.length > 0) {
+                    subjectIds = subjects.map(s => s._id.toString());
+                    console.log('Subject IDs found:', subjectIds);
+                } else {
+                    // Try partial match
+                    const partialSubjects = await Subject.find({ 
+                        name: { $regex: subjectName, $options: 'i' },
+                        isActive: true 
+                    });
+                    console.log('Partial match subjects:', partialSubjects);
+                    subjectIds = partialSubjects.map(s => s._id.toString());
+                }
+            }
+            
+            if (subjectIds.length > 0) {
+                // Find teachers who teach these subjects
+                const teacherSubjects = await TeacherSubject.find({ 
+                    subject: { $in: subjectIds },
+                    isActive: true 
+                }).distinct('teacher');
+                
+                console.log('Teacher IDs found with subjects:', teacherSubjects);
+                
+                const teacherIdStrings = teacherSubjects.map(id => id.toString());
+                teachers = teachers.filter(teacher => 
+                    teacherIdStrings.includes(teacher._id.toString())
+                );
+                console.log('Teachers after subject filter:', teachers.length);
+            } else {
+                console.log('No subjects found, returning empty');
+                teachers = [];
+            }
         }
         
         // Filter by price range
-        if (minPrice || maxPrice) {
+        if (maxPrice || minPrice) {
+            console.log('Applying price filter - min:', minPrice, 'max:', maxPrice);
             const teachersWithPrice = await Promise.all(
                 teachers.map(async (teacher) => {
                     const teacherSubjectsData = await TeacherSubject.find({ 
                         teacher: teacher._id,
                         isActive: true 
                     });
-                    const minTeacherPrice = Math.min(...teacherSubjectsData.map(ts => ts.price || Infinity));
-                    const maxTeacherPrice = Math.max(...teacherSubjectsData.map(ts => ts.price || 0));
+                    const minTeacherPrice = teacherSubjectsData.length > 0 
+                        ? Math.min(...teacherSubjectsData.map(ts => ts.price || Infinity))
+                        : Infinity;
+                    const maxTeacherPrice = teacherSubjectsData.length > 0
+                        ? Math.max(...teacherSubjectsData.map(ts => ts.price || 0))
+                        : 0;
                     
                     return {
                         teacher,
@@ -155,9 +298,10 @@ export const searchTeachers = async (req, res) => {
             }
             
             teachers = filtered.map(t => t.teacher);
+            console.log('Teachers after price filter:', teachers.length);
         }
         
-        // Get full teacher details with subjects and profiles
+        // Get full teacher details with subjects
         const teachersWithDetails = await Promise.all(
             teachers.map(async (teacher) => {
                 const profile = await TeacherProfile.findOne({ user: teacher._id });
@@ -184,6 +328,10 @@ export const searchTeachers = async (req, res) => {
         const endIndex = page * limit;
         const paginatedTeachers = teachersWithDetails.slice(startIndex, endIndex);
         
+        console.log('========== SEARCH RESULT ==========');
+        console.log('Total teachers found:', teachersWithDetails.length);
+        console.log('===================================');
+        
         res.json({ 
             status: true, 
             count: teachersWithDetails.length,
@@ -193,10 +341,10 @@ export const searchTeachers = async (req, res) => {
             data: paginatedTeachers
         });
     } catch (error) {
+        console.error('Search teachers error:', error);
         res.status(500).json({ status: false, message: error.message });
     }
 };
-
 export const getAllSubjects = async (req, res) => {
     try {
         const subjects = await Subject.find({ isActive: true });
